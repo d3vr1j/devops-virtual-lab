@@ -1,0 +1,29 @@
+- name: Configure Server
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Install Docker
+      dnf:                  # CHANGED: Amazon Linux 2023 uses dnf, not yum
+        name: docker
+        state: present
+
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ec2-user to docker group   # ADDED: run docker without sudo
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Check Docker version           # ADDED: proof for the lab record
+      command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Show Docker version            # ADDED
+      debug:
+        msg: "{{ docker_version.stdout }}"

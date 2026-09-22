@@ -40,6 +40,14 @@ resource "aws_security_group" "lab_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # ADDED: SSH on 443 because local network blocks port 22
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -49,10 +57,19 @@ resource "aws_security_group" "lab_sg" {
 }
 
 resource "aws_instance" "devops_server" {
-  ami                    = data.aws_ami.amazon_linux.id # CHANGED: was hardcoded AMI
-  instance_type          = "t3.micro" # CHANGED: t2.micro not free-tier eligible on this account
+  ami                    = data.aws_ami.amazon_linux.id   # CHANGED: was hardcoded AMI
+  instance_type          = "t3.micro"                     # CHANGED: t2.micro not free-tier eligible
   key_name               = aws_key_pair.lab.key_name      # CHANGED: was "my-key"
   vpc_security_group_ids = [aws_security_group.lab_sg.id] # ADDED
+
+  # ADDED: make sshd listen on both 22 and 443
+  user_data = <<-USERDATA
+    #!/bin/bash
+    printf "Port 22\nPort 443\n" > /etc/ssh/sshd_config.d/10-ports.conf
+    systemctl restart sshd
+  USERDATA
+
+  user_data_replace_on_change = true # ADDED: recreate instance so user_data runs
 
   tags = {
     Name = "DevOps-Lab-Server"
